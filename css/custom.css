@@ -1,0 +1,10 @@
+#footer {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important; /* �Ƴ����ܴ��ڵ���Ӱ */
+}
+
+/* ���������ҳ�����������ɫ�����ԣ������Ϊ��ɫ���ɫ�� */
+#footer #footer-wrap {
+  color: #eee !important; 
+}
