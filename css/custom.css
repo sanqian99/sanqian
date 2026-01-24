@@ -1,10 +1,11 @@
+/* ǿ��ҳ�ű���͸�����Ƴ���Ӱ */
 #footer {
   background: transparent !important;
   background-color: transparent !important;
-  box-shadow: none !important; /* �Ƴ����ܴ��ڵ���Ӱ */
+  box-shadow: none !important;
 }
 
-/* ���������ҳ�����������ɫ�����ԣ������Ϊ��ɫ���ɫ�� */
-#footer #footer-wrap {
-  color: #eee !important; 
+/* �Ƴ����ܴ��ڵĽ������� */
+#footer:before {
+  content: none !important;
 }
