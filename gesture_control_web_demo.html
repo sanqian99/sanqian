@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>手势控制粉色爱心粒子</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 30%, #fffafd 0%, #fff0f7 48%, #fce7f3 100%);
+      color: #9d174d;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      text-align: center;
+      color: #9d174d;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: #be185d;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .stage {
+      position: relative;
+      width: 950px;
+      max-width: 96vw;
+      aspect-ratio: 16 / 9;
+      border-radius: 24px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #fffafd, #fff1f7, #fce7f3);
+      box-shadow: 0 24px 70px rgba(190, 24, 93, 0.16);
+      border: 3px solid rgba(255, 255, 255, 0.9);
+    }
+
+    video,
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    video {
+      z-index: 1;
+      opacity: 0.18;
+      filter: blur(0.6px) saturate(0.72) brightness(1.2);
+      transform: scaleX(-1);
+    }
+
+    canvas {
+      z-index: 2;
+    }
+
+    .panel {
+      width: 950px;
+      max-width: 96vw;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.84);
+      color: #9d174d;
+      line-height: 1.7;
+      font-size: 14px;
+      box-shadow: 0 12px 40px rgba(190, 24, 93, 0.11);
+      backdrop-filter: blur(10px);
+    }
+
+    .status {
+      color: #be185d;
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: none;
+    }
+
+    .error {
+      color: #dc2626;
+      font-weight: bold;
+    }
+
+    .success {
+      color: #16a34a;
+      font-weight: bold;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+      background: #ec4899;
+      box-shadow: 0 8px 18px rgba(236, 72, 153, 0.22);
+    }
+
+    button:hover {
+      filter: brightness(1.05);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .secondary {
+      background: #f472b6;
+    }
+
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    code {
+      color: #9d174d;
+      background: rgba(244, 114, 182, 0.14);
+      padding: 2px 5px;
+      border-radius: 5px;
+    }
+  
+
+    .message-popup {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      z-index: 999;
+      transform: translate(-50%, -50%) scale(0.9);
+      min-width: 240px;
+      padding: 28px 46px;
+      border-radius: 30px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.52), rgba(255, 218, 237, 0.24)),
+        rgba(255, 245, 250, 0.34);
+      color: #be185d;
+      font-size: 42px;
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: 3px;
+      box-shadow:
+        0 24px 80px rgba(236, 72, 153, 0.24),
+        inset 0 1px 0 rgba(255, 255, 255, 0.72),
+        inset 0 -22px 42px rgba(255, 182, 218, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      outline: 1px solid rgba(255, 182, 218, 0.34);
+      backdrop-filter: blur(24px) saturate(1.55);
+      -webkit-backdrop-filter: blur(24px) saturate(1.55);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .message-popup.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .photo-popup-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .photo-popup-layer img {
+      width: min(78vw, 620px);
+      max-height: 78vh;
+      object-fit: contain;
+      border-radius: 22px;
+      border: 4px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 28px 90px rgba(190, 24, 93, 0.28);
+      animation: photoPopFade 0.8s ease forwards;
+    }
+
+    @keyframes photoPopFade {
+      0% {
+        opacity: 1;
+        transform: scale(0.86);
+      }
+
+      12% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.04);
+      }
+    }
+
+    .sentence-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.82), rgba(255, 240, 248, 0.64) 48%, rgba(252, 231, 243, 0.42) 100%);
+      color: #fff7fb;
+      font-size: clamp(28px, 7vw, 68px);
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: 0;
+      text-shadow:
+        0 2px 14px rgba(190, 24, 93, 0.22),
+        0 0 30px rgba(255, 255, 255, 0.82);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.7s ease;
+    }
+
+    .sentence-overlay.show {
+      opacity: 1;
+    }
+
+    .sentence-overlay span {
+      display: inline-block;
+      opacity: 0;
+      transform: translateY(18px) scale(0.84);
+      animation: sentenceCharPop 0.26s cubic-bezier(0.2, 0.82, 0.22, 1.18) forwards;
+    }
+
+    @keyframes sentenceCharPop {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.84);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>手势控制粉色爱心粒子</h1>
+  <p>张开手掌时，粉色粉末散开；握拳或手指收拢时，粉色粒子聚成爱心，并跟随手移动。</p>
+
+  <div class="stage">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="sentenceOverlay" class="sentence-overlay" aria-hidden="true"></div>
+  </div>
+
+  <div class="panel">
+    <div class="status" id="status">准备就绪：请点击“开启摄像头”。</div>
+
+    <div class="controls">
+      <button id="startBtn" type="button">开启摄像头</button>
+      <button id="stopBtn" class="secondary" type="button" disabled>关闭摄像头</button>
+    </div>
+  </div>
+
+  <div id="messagePopup" class="message-popup"></div>
+  <div id="photoPopupLayer" class="photo-popup-layer" aria-hidden="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    const statusText = document.getElementById("status");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const messagePopup = document.getElementById("messagePopup");
+    const photoPopupLayer = document.getElementById("photoPopupLayer");
+    const sentenceOverlay = document.getElementById("sentenceOverlay");
+
+    let camera = null;
+    let isCameraRunning = false;
+    let handDetected = false;
+
+    // mode: 0 = 聚成爱心；1 = 粉末散开
+    let targetMode = 0;
+    let currentMode = 0;
+    let stableGesture = "closed";
+    let openFrames = 0;
+    let closedFrames = 0;
+
+    let heartStartTime = null;
+    let hasShownFiveSecondMessage = false;
+    let hasShownTenSecondMessage = false;
+    let popupTimer = null;
+    let pictureSequenceDelayTimer = null;
+    let pictureSequenceTimer = null;
+    let isPictureSequencePlaying = false;
+    let sentenceHideTimer = null;
+
+    let handX = 475;
+    let handY = 265;
+    let targetHandX = 475;
+    let targetHandY = 265;
+    let palmScale = 1;
+    let targetPalmScale = 1;
+
+    let lastTime = performance.now();
+
+    const PARTICLE_COUNT = 9800;
+    const particles = [];
+    const pictureSequence = Array.from({ length: 9 }, function(_, index) {
+      return `picture/${index + 1}.jpg`;
+    });
+    const delayedSentence = "做人要勇敢";
+
+    const pinkPalette = [
+      "rgba(255, 255, 255, 0.98)",
+      "rgba(255, 246, 251, 0.98)",
+      "rgba(255, 225, 240, 0.96)",
+      "rgba(252, 199, 225, 0.95)",
+      "rgba(249, 168, 212, 0.9)",
+      "rgba(244, 114, 182, 0.82)"
+    ];
+
+    function setStatus(message, type = "normal") {
+      statusText.className = "status";
+      if (type === "error") statusText.classList.add("error");
+      if (type === "success") statusText.classList.add("success");
+      statusText.textContent = message;
+    }
+
+    function showPopupMessage(text) {
+      messagePopup.textContent = text;
+      messagePopup.classList.add("show");
+
+      if (popupTimer) clearTimeout(popupTimer);
+      popupTimer = setTimeout(function() {
+        messagePopup.classList.remove("show");
+      }, 1800);
+    }
+
+    function clearPictureSequence() {
+      if (pictureSequenceDelayTimer) {
+        clearTimeout(pictureSequenceDelayTimer);
+        pictureSequenceDelayTimer = null;
+      }
+
+      if (pictureSequenceTimer) {
+        clearTimeout(pictureSequenceTimer);
+        pictureSequenceTimer = null;
+      }
+
+      isPictureSequencePlaying = false;
+      photoPopupLayer.innerHTML = "";
+    }
+
+    function startPictureSequence() {
+      if (isPictureSequencePlaying) return;
+
+      isPictureSequencePlaying = true;
+      let index = 0;
+
+      function showNextPicture() {
+        if (index >= pictureSequence.length) {
+          clearPictureSequence();
+          showDelayedSentence();
+          return;
+        }
+
+        photoPopupLayer.innerHTML = "";
+
+        const image = new Image();
+        image.src = pictureSequence[index];
+        image.alt = `picture ${index + 1}`;
+        photoPopupLayer.appendChild(image);
+
+        index++;
+        pictureSequenceTimer = setTimeout(showNextPicture, 800);
+      }
+
+      showNextPicture();
+    }
+
+    function startPictureSequenceAfterMessage() {
+      if (pictureSequenceDelayTimer || isPictureSequencePlaying) return;
+
+      pictureSequenceDelayTimer = setTimeout(function() {
+        pictureSequenceDelayTimer = null;
+        startPictureSequence();
+      }, 1800);
+    }
+
+    function showDelayedSentence() {
+      sentenceOverlay.innerHTML = "";
+
+      if (sentenceHideTimer) {
+        clearTimeout(sentenceHideTimer);
+        sentenceHideTimer = null;
+      }
+
+      Array.from(delayedSentence).forEach(function(char, index) {
+        const span = document.createElement("span");
+        span.textContent = char;
+        span.style.animationDelay = `${index * 0.15}s`;
+        sentenceOverlay.appendChild(span);
+      });
+
+      sentenceOverlay.classList.add("show");
+
+      sentenceHideTimer = setTimeout(function() {
+        sentenceOverlay.classList.remove("show");
+        sentenceHideTimer = setTimeout(function() {
+          sentenceOverlay.innerHTML = "";
+          sentenceHideTimer = null;
+        }, 260);
+      }, delayedSentence.length * 150 + 460);
+    }
+
+    function resetHeartTimer() {
+      heartStartTime = null;
+    }
+
+    function updateHeartTimer() {
+      // 严格逻辑：必须开启摄像头后，并且检测到手处于“聚成爱心/收拢”状态，才开始连续计时。
+      // 张开手、手离开画面、摄像头关闭，都会重置计时。
+      if (!isCameraRunning || !handDetected || stableGesture !== "closed") {
+        resetHeartTimer();
+        return;
+      }
+
+      if (heartStartTime === null) {
+        heartStartTime = performance.now();
+        setStatus("爱心计时开始：连续保持 3 秒弹出“团支书”，连续保持 6 秒弹出“傲娇的猫”。", "success");
+        return;
+      }
+
+      const elapsed = performance.now() - heartStartTime;
+      const seconds = Math.floor(elapsed / 1000);
+
+      setStatus(`爱心连续保持中：已持续 ${seconds} 秒。3 秒弹“团支书”，6 秒弹“傲娇的猫”。`, "success");
+
+      if (elapsed >= 3000 && !hasShownFiveSecondMessage) {
+        hasShownFiveSecondMessage = true;
+        showPopupMessage("团支书");
+      }
+
+      if (elapsed >= 6000 && !hasShownTenSecondMessage) {
+        hasShownTenSecondMessage = true;
+        showPopupMessage("傲娇的猫");
+        startPictureSequenceAfterMessage();
+      }
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(1, Math.floor(rect.width));
+      const height = Math.max(1, Math.floor(rect.height));
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+        targetHandX = width / 2;
+        targetHandY = height / 2;
+        handX = targetHandX;
+        handY = targetHandY;
+        resetParticles();
+      }
+    }
+
+    function isSecureCameraContext() {
+      const host = window.location.hostname;
+      return window.isSecureContext || host === "localhost" || host === "127.0.0.1" || host === "::1";
+    }
+
+    function random(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function makeHeartPoint() {
+      const t = random(0, Math.PI * 2);
+      const outlineBias = Math.random();
+
+      let fill;
+      if (outlineBias < 0.34) {
+        fill = random(0.91, 1.045);      // 增强白色边缘粉末感
+      } else {
+        fill = Math.sqrt(Math.random());
+      }
+
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(
+        13 * Math.cos(t) -
+        5 * Math.cos(2 * t) -
+        2 * Math.cos(3 * t) -
+        Math.cos(4 * t)
+      );
+
+      return {
+        x: x * fill + random(-0.35, 0.35),
+        y: y * fill + random(-0.35, 0.35),
+        edge: outlineBias < 0.34
+      };
+    }
+
+    function resetParticles() {
+      particles.length = 0;
+
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const heart = makeHeartPoint();
+        const angle = random(0, Math.PI * 2);
+
+        // 散开状态用均匀粉末云，不再沿用爱心形状。
+        const cloudRadius = Math.pow(Math.random(), 0.55) * random(260, 760);
+        const cloudSquash = random(0.62, 1.05);
+
+        particles.push({
+          x: canvas.width / 2 + Math.cos(angle) * cloudRadius,
+          y: canvas.height / 2 + Math.sin(angle) * cloudRadius * cloudSquash,
+          heartNX: heart.x,
+          heartNY: heart.y,
+          isEdge: heart.edge,
+          cloudAngle: angle,
+          cloudRadius,
+          cloudSquash,
+          cloudOffsetX: random(-120, 120),
+          cloudOffsetY: random(-80, 80),
+          vx: random(-1.35, 1.35),
+          vy: random(-1.35, 1.35),
+          size: heart.edge ? random(1.15, 2.25) : random(0.78, 1.75),
+          color: pinkPalette[Math.floor(Math.random() * pinkPalette.length)],
+          twinkle: random(0, Math.PI * 2),
+          speed: random(0.065, 0.15),
+          phase: random(0, Math.PI * 2)
+        });
+      }
+    }
+
+    function drawBackground() {
+      const gradient = ctx.createRadialGradient(
+        handX,
+        handY,
+        10,
+        handX,
+        handY,
+        Math.max(canvas.width, canvas.height) * 0.72
+      );
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.24)");
+      gradient.addColorStop(0.46, "rgba(255, 240, 248, 0.14)");
+      gradient.addColorStop(1, "rgba(252, 231, 243, 0.035)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawSoftGlow() {
+      const glowRadius = lerp(165, 360, currentMode) * palmScale;
+      const gradient = ctx.createRadialGradient(handX, handY, 0, handX, handY, glowRadius);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.16)");
+      gradient.addColorStop(0.38, "rgba(249, 168, 212, 0.09)");
+      gradient.addColorStop(1, "rgba(249, 168, 212, 0)");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(handX, handY, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawParticles(dt) {
+      currentMode = lerp(currentMode, targetMode, targetMode > currentMode ? 0.28 : 0.16);
+      handX = lerp(handX, targetHandX, 0.2);
+      handY = lerp(handY, targetHandY, 0.2);
+      palmScale = lerp(palmScale, targetPalmScale, 0.13);
+
+      const heartScale = Math.min(canvas.width, canvas.height) / 44 * palmScale;
+      const cloudScale = Math.min(canvas.width, canvas.height) / 390 * palmScale;
+
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+
+      for (const p of particles) {
+        p.twinkle += dt * 0.0048;
+
+        const heartX = handX + p.heartNX * heartScale;
+        const heartY = handY + p.heartNY * heartScale;
+
+        const breathing = Math.sin(p.twinkle + p.phase);
+        const cloudPulse = 1 + breathing * 0.045;
+
+        // 散开时是近似椭圆粉末云，中心跟手走，形状不再像爱心。
+        const burst = currentMode > 0.35 ? (currentMode - 0.35) * 130 : 0;
+        const cloudX = handX + Math.cos(p.cloudAngle) * (p.cloudRadius * cloudScale + burst) * cloudPulse + p.cloudOffsetX * cloudScale;
+        const cloudY = handY + Math.sin(p.cloudAngle) * (p.cloudRadius * cloudScale + burst) * p.cloudSquash * cloudPulse + p.cloudOffsetY * cloudScale;
+
+        const targetX = lerp(heartX, cloudX, currentMode);
+        const targetY = lerp(heartY, cloudY, currentMode);
+
+        p.x += (targetX - p.x) * p.speed;
+        p.y += (targetY - p.y) * p.speed;
+
+        if (currentMode > 0.38) {
+          p.x += p.vx * currentMode * 1.6;
+          p.y += p.vy * currentMode * 1.6;
+        }
+
+        const alpha = lerp(p.isEdge ? 0.94 : 0.76, 0.52, currentMode) + Math.sin(p.twinkle) * 0.12;
+        const size = p.size * lerp(1.18, 0.82, currentMode);
+
+        ctx.globalAlpha = clamp(alpha, 0.18, 0.98);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+
+    function drawHintText(message) {
+      ctx.save();
+      ctx.fillStyle = "rgba(157, 23, 77, 0.88)";
+      ctx.font = "bold 18px Arial";
+      ctx.fillText(message, 24, 34);
+      ctx.restore();
+    }
+
+    function render() {
+      resizeCanvas();
+      const now = performance.now();
+      const dt = now - lastTime;
+      lastTime = now;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBackground();
+      drawSoftGlow();
+      drawParticles(dt);
+      updateHeartTimer();
+
+      if (!isCameraRunning) {
+        targetMode = 0;
+        targetHandX = canvas.width / 2;
+        targetHandY = canvas.height / 2;
+        drawHintText("点击下方按钮开启摄像头");
+      } else if (!handDetected) {
+        targetMode = 1;
+        drawHintText("请把手放到摄像头前");
+      } else if (stableGesture === "open") {
+        drawHintText("张开手掌：粉色粉末散开");
+      } else {
+        drawHintText("握拳 / 收拢手指：粒子聚成爱心");
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    function explainCameraError(error) {
+      const name = error && error.name ? error.name : "UnknownError";
+
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        return "摄像头权限被拒绝。请点击浏览器地址栏左侧的权限图标，把摄像头改为允许，然后刷新页面重试。";
+      }
+      if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        return "没有检测到可用摄像头。请确认设备有摄像头，并且没有被系统禁用。";
+      }
+      if (name === "NotReadableError" || name === "TrackStartError") {
+        return "摄像头无法读取。可能被其他软件占用，请关闭会议软件、相机软件后重试。";
+      }
+      if (name === "SecurityError") {
+        return "浏览器安全策略阻止摄像头。请使用 HTTPS 或 localhost 访问页面。";
+      }
+
+      return `摄像头启动失败：${name}。请检查权限、HTTPS 和摄像头占用情况。`;
+    }
+
+    function runSelfTests() {
+      const tests = [];
+
+      tests.push({ name: "Canvas 画布可用", pass: !!ctx && canvas.width > 0 && canvas.height > 0 });
+      tests.push({ name: "粒子数量足够", pass: particles.length === PARTICLE_COUNT });
+      tests.push({ name: "MediaPipe Hands 脚本已加载", pass: typeof Hands !== "undefined" });
+      tests.push({ name: "MediaPipe Camera 脚本已加载", pass: typeof Camera !== "undefined" });
+      tests.push({ name: "浏览器支持 getUserMedia", pass: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) });
+      tests.push({ name: "当前页面允许请求摄像头", pass: isSecureCameraContext() });
+
+      console.table(tests);
+
+      const failed = tests.filter((item) => !item.pass);
+      if (failed.length === 0) {
+        setStatus("自检通过：摄像头环境与粒子系统正常。", "success");
+      } else {
+        setStatus("自检未通过：" + failed.map((item) => item.name).join("、"), "error");
+      }
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function getPalmInfo(landmarks) {
+      const wrist = landmarks[0];
+      const indexBase = landmarks[5];
+      const middleBase = landmarks[9];
+      const ringBase = landmarks[13];
+      const pinkyBase = landmarks[17];
+
+      const palmWidth = distance(indexBase, pinkyBase);
+      const palmHeight = distance(wrist, middleBase);
+      const palmSize = Math.max(0.04, palmWidth, palmHeight);
+
+      const centerX = (wrist.x + indexBase.x + middleBase.x + ringBase.x + pinkyBase.x) / 5;
+      const centerY = (wrist.y + indexBase.y + middleBase.y + ringBase.y + pinkyBase.y) / 5;
+
+      return { centerX, centerY, palmSize };
+    }
+
+    function getFingerState(landmarks, tipIndex, pipIndex, mcpIndex, palm) {
+      const tip = landmarks[tipIndex];
+      const pip = landmarks[pipIndex];
+      const mcp = landmarks[mcpIndex];
+
+      const tipToPalm = Math.hypot(tip.x - palm.centerX, tip.y - palm.centerY) / palm.palmSize;
+      const pipToPalm = Math.hypot(pip.x - palm.centerX, pip.y - palm.centerY) / palm.palmSize;
+      const tipToMcp = Math.hypot(tip.x - mcp.x, tip.y - mcp.y) / palm.palmSize;
+
+      const pointsOutward = tipToPalm > pipToPalm + 0.06;
+      const pointsUpward = tip.y < pip.y - palm.palmSize * 0.05;
+
+      // 伸直的手指：兼容正对摄像头和手掌略旋转的情况，撑开手掌会更容易被识别。
+      return tipToPalm > 1.18 && tipToMcp > 0.54 && (pointsOutward || pointsUpward);
+    }
+
+    function classifyGesture(landmarks) {
+      const palm = getPalmInfo(landmarks);
+
+      const indexOpen = getFingerState(landmarks, 8, 6, 5, palm);
+      const middleOpen = getFingerState(landmarks, 12, 10, 9, palm);
+      const ringOpen = getFingerState(landmarks, 16, 14, 13, palm);
+      const pinkyOpen = getFingerState(landmarks, 20, 18, 17, palm);
+
+      const openedLongFingers = [indexOpen, middleOpen, ringOpen, pinkyOpen].filter(Boolean).length;
+
+      const thumbTip = landmarks[4];
+      const indexBase = landmarks[5];
+      const pinkyBase = landmarks[17];
+      const thumbAway = Math.min(distance(thumbTip, indexBase), distance(thumbTip, pinkyBase)) / palm.palmSize > 1.05;
+
+      // 张开手掌：至少 3 根长手指明显伸直。拇指只做辅助，不强制要求。
+      const fingerTips = [8, 12, 16, 20];
+      let averageTipDistance = 0;
+      for (const tipIndex of fingerTips) {
+        const tip = landmarks[tipIndex];
+        averageTipDistance += Math.hypot(tip.x - palm.centerX, tip.y - palm.centerY) / palm.palmSize;
+      }
+      averageTipDistance /= fingerTips.length;
+
+      const fingerSpread = distance(landmarks[8], landmarks[20]) / palm.palmSize;
+
+      // 张开手掌判定放宽：手指伸直、指尖远离掌心，或食指到小指明显撑开都算张开。
+      const isOpen = openedLongFingers >= 2 || averageTipDistance > 1.54 || (fingerSpread > 1.38 && averageTipDistance > 1.28);
+
+      // 收拢/握拳：需要指尖更靠近掌心，并且手指没有明显撑开。
+      const isClosed = openedLongFingers <= 1 && averageTipDistance < 1.34 && fingerSpread < 1.28;
+
+      return {
+        palm,
+        openedLongFingers,
+        thumbAway,
+        averageTipDistance,
+        fingerSpread,
+        isOpen,
+        isClosed
+      };
+    }
+
+    function updateStableGesture(result) {
+      if (result.isOpen) {
+        openFrames++;
+        closedFrames = 0;
+      } else if (result.isClosed) {
+        closedFrames++;
+        openFrames = 0;
+      } else {
+        openFrames = Math.max(0, openFrames - 1);
+        closedFrames = Math.max(0, closedFrames - 1);
+      }
+
+      // 连续几帧才切换，避免抖动和误判。
+      if (openFrames >= 1) {
+        if (stableGesture !== "open") {
+          resetHeartTimer();
+        }
+        stableGesture = "open";
+        targetMode = 1;
+        resetHeartTimer();
+      }
+
+      if (closedFrames >= 4) {
+        stableGesture = "closed";
+        targetMode = 0;
+      }
+    }
+
+    resizeCanvas();
+    resetParticles();
+    window.addEventListener("resize", function() {
+      resizeCanvas();
+      resetParticles();
+    });
+
+    const hands = new Hands({
+      locateFile: function(file) {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      }
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.72,
+      minTrackingConfidence: 0.72
+    });
+
+    hands.onResults(function(results) {
+      handDetected = false;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        handDetected = true;
+        const landmarks = results.multiHandLandmarks[0];
+        const gesture = classifyGesture(landmarks);
+        updateStableGesture(gesture);
+
+        // video 是镜像显示，所以这里 x 也反向，让粒子跟着画面里的手走。
+        targetHandX = (1 - gesture.palm.centerX) * canvas.width;
+        targetHandY = gesture.palm.centerY * canvas.height;
+        targetPalmScale = clamp(gesture.palm.palmSize * 8.8, 0.76, 1.62);
+
+        if (stableGesture === "open") {
+          setStatus(`检测到张开手掌：${gesture.openedLongFingers} 根手指伸直，粉末爆散。`, "success");
+        } else if (heartStartTime === null) {
+          setStatus(`检测到收拢手势：${gesture.openedLongFingers} 根手指伸直，开始计时。`, "success");
+        }
+      } else {
+        if (isCameraRunning) {
+          handDetected = false;
+          targetMode = 1;
+          resetHeartTimer();
+          setStatus("摄像头已启动：请把手放到摄像头前。张开散开，收拢聚成爱心。");
+        }
+      }
+    });
+
+    async function startCamera() {
+      if (isCameraRunning) return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus("当前浏览器不支持摄像头 API，请换 Chrome、Edge 或 Safari。", "error");
+        return;
+      }
+
+      if (!isSecureCameraContext()) {
+        setStatus("当前页面不是 HTTPS 或 localhost，浏览器会禁止摄像头。请部署到 HTTPS 静态博客后再打开。", "error");
+        return;
+      }
+
+      startBtn.disabled = true;
+      setStatus("正在请求摄像头权限，请在浏览器弹窗中点击允许...");
+
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+          .then((stream) => {
+            stream.getTracks().forEach((track) => track.stop());
+          });
+
+        camera = new Camera(video, {
+          onFrame: async function() {
+            await hands.send({ image: video });
+          },
+          width: 1280,
+          height: 720
+        });
+
+        await camera.start();
+        isCameraRunning = true;
+        stopBtn.disabled = false;
+        stableGesture = "open";
+        targetMode = 1;
+        setStatus("摄像头已启动：张开手掌散成粉末，握拳聚成爱心。", "success");
+      } catch (error) {
+        console.error("Failed to acquire camera feed:", error);
+        setStatus(explainCameraError(error), "error");
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+      }
+    }
+
+    function stopCamera() {
+      if (camera && typeof camera.stop === "function") {
+        camera.stop();
+      }
+
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach((track) => track.stop());
+        video.srcObject = null;
+      }
+
+      camera = null;
+      isCameraRunning = false;
+      handDetected = false;
+      resetHeartTimer();
+      clearPictureSequence();
+      stableGesture = "closed";
+      targetMode = 0;
+      resetHeartTimer();
+      targetHandX = canvas.width / 2;
+      targetHandY = canvas.height / 2;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      setStatus("摄像头已关闭。需要继续体验时，请再次点击开启摄像头。");
+    }
+
+    startBtn.addEventListener("click", startCamera);
+    stopBtn.addEventListener("click", stopCamera);
+
+    render();
+  </script>
+</body>
+</html>
